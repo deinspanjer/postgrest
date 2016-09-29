@@ -1,0 +1,21 @@
+FROM mitchty/alpine-ghc:7.10
+
+RUN apk add --no-cache git g++ postgresql-dev
+COPY postgrest.cabal postgrest.cabal
+COPY stack.yaml stack.yaml
+#RUN stack setup
+RUN stack build --prefetch --dry-run
+RUN stack build -j1 --only-snapshot
+RUN stack build -j1 --only-dependencies
+
+CMD mkdir -p dist \
+    && stack build -j1 --force-dirty --allow-different-user \
+    && stack install --local-bin-path /dist \
+    && cp /dist/postgrest /output/postgrest
+
+# build with
+# docker build --no-cache -f BuildDockerfile -t postgrest-build .
+
+# run with (to extract the binary)
+# docker run -v $(pwd):/output -v $(pwd)/src:/src -v $(pwd)/main:/main  -v $(pwd)/test:/test -v $(pwd)/LICENSE:/LICENSE postgrest-build
+
