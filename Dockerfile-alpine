@@ -1,23 +1,19 @@
 FROM alpine:latest
 
-ENV POSTGREST_VERSION 0.3.2.0
-ENV POSTGREST_SCHEMA public
-ENV POSTGREST_ANONYMOUS postgres
-ENV POSTGREST_JWT_SECRET thisisnotarealsecret
-ENV POSTGREST_MAX_ROWS 1000000
-ENV POSTGREST_POOL 200
 ENV LANG en_US.utf8
+EXPOSE 3000
 
 RUN apk add --no-cache bash postgresql-client postgresql-dev gmp
 
+COPY docker-entrypoint.sh /
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["-h"]
+
 COPY postgrest /usr/local/bin/
-
-CMD exec postgrest postgres://${PG_ENV_POSTGRES_USER}:${PG_ENV_POSTGRES_PASSWORD}@${PG_PORT_5432_TCP_ADDR}:${PG_PORT_5432_TCP_PORT}/${PG_ENV_POSTGRES_DB} \
-              --port 3000 \
-              --schema ${POSTGREST_SCHEMA} \
-              --anonymous ${POSTGREST_ANONYMOUS} \
-              --pool ${POSTGREST_POOL} \
-              --jwt-secret ${POSTGREST_JWT_SECRET} \
-              --max-rows ${POSTGREST_MAX_ROWS}
-
-EXPOSE 3000
+COPY postgrest_available_options.md5 /
+RUN postgrest -h > postgrest_usage.txt; \
+    sed -n '/Available options/,$p' postgrest_usage.txt > postgrest_available_options; \
+    md5sum -c postgrest_available_options.md5 || \
+    { echo; echo "WARNING: postgrest available options have changed."; \
+      echo "Update the docker-entrypoint.sh to match."; echo; exit 1; }; \
+    rm postgrest_available_options*
